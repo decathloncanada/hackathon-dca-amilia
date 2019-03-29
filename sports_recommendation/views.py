@@ -2,9 +2,33 @@ from django.http import HttpResponse, JsonResponse
 import requests
 import requests_cache
 
-def test(request):
-    # Example call to the Amilia API
-    r = requests.get('https://www.amilia.com/api/v3/fr/locations?type=Radius&coordinates=45.0,-73.5&radius=50&page=1&perpage=250&keywordId=2')
-    requests_cache.install_cache('amilia_cache', backend='sqlite', expire_after=60)
+from .models import Location
+
+requests_cache.install_cache(
+    'amilia_cache', backend='sqlite', expire_after=24*60*60
+)
+
+def get_locations(request, lng=45.5035, lat=-73.5685, radius=10):
+    r = requests.get(
+        'https://www.amilia.com/api/v3/fr/locations?type=Radius&coordinates=%f,%f&radius=%i'
+        % (lng, lat, radius))
+
+    for location in r.json()['Items']:
+        Location(
+            locationId=location['Id'],
+            name=location['Name'],
+            fullName=location['FullName'],
+            description=location['Description'],
+            telephone=location['Telephone'],
+            telephoneExtension=location['TelephoneExtension'],
+            parentId=location['ParentId'],
+            topParentId=location['TopParentId'],
+            ancestorIds=location['AncestorIds'],
+            address=location['Address']['Address1'],
+            keywords=location['Keywords'],
+        ).save()
+
+    return JsonResponse(r.json(), safe=False)
+
 
     return JsonResponse(r.json(), safe=False)
