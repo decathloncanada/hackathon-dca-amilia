@@ -1,6 +1,7 @@
 from django.http import HttpResponse, JsonResponse
 import requests
 import requests_cache
+import json
 
 from .models import Location
 
@@ -9,27 +10,29 @@ requests_cache.install_cache(
 )
 
 
-def get_locations(request, lng=45.5035, lat=-73.5685, radius=10):
-    r = requests.get(
-        'https://www.amilia.com/api/v3/fr/locations?type=Radius&coordinates=%f,%f&radius=%i'
-        % (lng, lat, radius))
+def get_activities(self, latitude=45.511, longitude=-73.582, radius=2):
+    # exract places at this location
+    url = 'https://www.amilia.com/api/v3/fr/locations?type=Radius&coordinates={},{}&radius={}&page=1&perpage=2000'.format(
+        latitude, longitude, radius)
+    r = requests.get(url)
+    data = json.loads(r.text)
 
-    for location in r.json()['Items']:
-        Location.objects.get_or_create(
-            locationId=location['Id'],
-            name=location['Name'],
-            fullName=location['FullName'],
-            description=location['Description'],
-            telephone=location['Telephone'],
-            telephoneExtension=location['TelephoneExtension'],
-            parentId=location['ParentId'],
-            topParentId=location['TopParentId'],
-            ancestorIds=location['AncestorIds'],
-            address=location['Address'],
-            keywords=location['Keywords'],
-        )
+    locations = [i['Id'] for i in data['Items']]
 
-    return JsonResponse(r.json(), safe=False)
+    # extract all the activities
+    activities = []
+    for i in locations:
+        url = ("https://www.amilia.com/api/v3/fr/locations/%i/activities?showHidden=false&showCancelled=false&showChildrenActivities=false"
+               % i)
+        r = requests.get(url)
+        activities.append(r.json())
 
+    # extract all the activities with sports
+    sport_activities = []
 
-    return JsonResponse(r.json(), safe=False)
+    for a in range(len(activities)):
+        for b in activities[a]['Items']:
+            if len(b['Keywords']) is not 0:
+                sport_activities.append(b)
+
+    return JsonResponse(sport_activities, safe=False)
