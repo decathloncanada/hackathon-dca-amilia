@@ -2,5 +2,5 @@ from django.urls import path
 from .views import get_activities
 
 urlpatterns = [
-    path('', get_activities, name='locations'),
+    path('sports/', get_activities, name='locations'),
 ]

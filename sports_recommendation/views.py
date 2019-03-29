@@ -2,6 +2,7 @@ from django.http import HttpResponse, JsonResponse
 import requests
 import requests_cache
 import json
+import operator
 
 from .models import Location
 
@@ -29,10 +30,29 @@ def get_activities(self, latitude=45.511, longitude=-73.582, radius=2):
 
     # extract all the activities with sports
     sport_activities = []
+    popular_sports = {}
 
     for a in range(len(activities)):
         for b in activities[a]['Items']:
             if len(b['Keywords']) is not 0:
                 sport_activities.append(b)
+                for c in b['Keywords']:
+                    if c['Id'] not in popular_sports:
+                        popular_sports[c['Id']] = 1
+                    else:
+                        popular_sports[c['Id']] += 1
 
-    return JsonResponse(sport_activities, safe=False)
+    sorted_dic = sorted(popular_sports.items(),
+                        key=lambda kv: kv[1], reverse=True)[:5]
+
+    sorted_list = [i[0] for i in sorted_dic]
+
+    decathlon_id = []
+    for sport_id in sorted_list:
+        r = requests.get(
+            'https://www.amilia.com/api/v3/fr/keywords?partner=Decathlon')
+        for i in r.json():
+            if i['Id'] == sport_id:
+                decathlon_id.append(i['PartnerId'])
+
+    return JsonResponse(decathlon_id, safe=False)
